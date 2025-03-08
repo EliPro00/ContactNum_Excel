@@ -42,28 +42,34 @@ def index():
 
 @app.route('/capture_data', methods=['POST'])
 def capture_data():
+    # Initialize data structure for DataFrame
     data = {
-        "Name" : [],
-        "Phone Number" : []
-
+        "Name": [],
+        "Phone Number": []
     }
     df = pd.DataFrame(data)
     file_path = "contacts.xlsx"
     df.to_excel(file_path, index=False)
-    wb = load_workbook ('contacts.xlsx')
-    ws=wb.active
 
+    # Load existing workbook
+    wb = load_workbook(file_path)
+    ws = wb.active
+
+    # Get input from form
     prefix = request.form.get("prefix")
     contact = request.form.get("contact")
-    contact_numbers = contact.split(",")
-    i = 1
-    for num in contact_numbers : 
-      new_row = {'A' : '{1}_{0}'.format(i , prefix) , 'b' : num}
-      ws.append(new_row)
-      wb.save('contacts.xlsx')
-      i = i + 1
 
-    return send_file("contacts.xlsx", as_attachment=True)
+    # Split contacts by comma
+    contact_numbers = contact.split(",")
+
+    # Append data to Excel file
+    for i, num in enumerate(contact_numbers, start=1):  
+        ws.append([f"{prefix}_{i}", num.strip()]) 
+
+    wb.save(file_path)
+
+    return send_file(file_path, as_attachment=True)
+    
 
 
 
