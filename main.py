@@ -1,7 +1,7 @@
-from flask import Flask , request , render_template_string , send_file
+from flask import Flask, request, render_template_string, send_file
 import pandas as pd
-from openpyxl import Workbook , load_workbook 
-
+from openpyxl import Workbook
+from io import BytesIO
 
 app = Flask(__name__)
 
@@ -42,38 +42,36 @@ def index():
 
 @app.route('/capture_data', methods=['POST'])
 def capture_data():
-    # Initialize data structure for DataFrame
-    data = {
-        "Name": [],
-        "Phone Number": []
-    }
-    df = pd.DataFrame(data)
-    file_path = "contacts.xlsx"
-    df.to_excel(file_path, index=False)
-
-    # Load existing workbook
-    wb = load_workbook(file_path)
-    ws = wb.active
-
     # Get input from form
-    prefix = request.form.get("prefix")
-    contact = request.form.get("contact")
+    prefix = request.form.get("prefix", "").strip()
+    contact = request.form.get("contact", "").strip()
 
-    # Split contacts by comma
-    contact_numbers = contact.split(",")
+    # Validate input
+    if not prefix or not contact:
+        return "Prefix and Contact numbers are required!", 400
+
+    # Split contacts
+    contact_numbers = [num.strip() for num in contact.split(",") if num.strip()]
+
+    if not contact_numbers:
+        return "Invalid contact numbers!", 400
+
+    # Create an Excel file in memory
+    output = BytesIO()
+    wb = Workbook()
+    ws = wb.active
+    ws.append(["Name", "Phone Number"])  # Header row
 
     # Append data to Excel file
-    for i, num in enumerate(contact_numbers, start=1):  
-        ws.append([f"{prefix}_{i}", num.strip()]) 
+    for i, num in enumerate(contact_numbers, start=1):
+        ws.append([f"{prefix}_{i}", num])
 
-    wb.save(file_path)
+    # Save to in-memory buffer
+    wb.save(output)
+    output.seek(0)
 
-    return send_file(file_path, as_attachment=True)
-    
-
-
+    # Send file to user
+    return send_file(output, as_attachment=True, download_name="contacts.xlsx", mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 if __name__ == "__main__":
     app.run(debug=True)
-
-
